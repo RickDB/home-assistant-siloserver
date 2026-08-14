@@ -15,8 +15,12 @@ Assistant.
 ## Features
 
 - UI-based setup with a Silo administrator account
-- Active stream count and detailed playback diagnostics
+- Active stream count and detailed playback information
 - A media player entity for each active Silo client
+- Visible direct play, remux, or transcode status for each client
+- Silo account and profile currently using each client
+- Source and target codecs, resolution, bitrate, hardware acceleration, and node
+  information
 - Native pause, resume, and stop controls for compatible clients
 - Episode, season, series, and cover-art metadata
 - A button to scan all enabled libraries
@@ -46,6 +50,12 @@ controls the server cannot execute.
 5. Search for **SiloServer**, select it, and choose **Download**.
 6. Restart Home Assistant.
 
+> [!NOTE]
+> HACS may show its generic "icon not available" image for this repository. HACS
+> currently does not display brand images bundled with custom integrations. The
+> SiloServer brand image is included correctly and is used by supported Home
+> Assistant integration pages after installation.
+
 ### Manual
 
 1. Download this repository.
@@ -58,6 +68,16 @@ The resulting path should be:
 ```text
 <config>/custom_components/siloserver/
 ```
+
+### Updating
+
+Use **Update** on the SiloServer download in HACS and restart Home Assistant. For
+a manual installation, replace the complete `custom_components/siloserver`
+directory with the new version before restarting.
+
+Version `0.3.0` removes the old library-status diagnostic entities. During
+startup, the integration also removes those obsolete entities from Home
+Assistant's entity registry.
 
 ## Configuration
 
@@ -77,14 +97,33 @@ server with a self-signed certificate.
 | --- | --- |
 | **Active streams** sensor | Number of active sessions, with playback and client details as attributes |
 | Session media players | One entity per observed Silo client, including playback state and media metadata |
-| Playback method sensors | Direct play, remux, or transcode state for each client, with codecs, resolution, bitrate, hardware acceleration, and transcode-node details |
+| Playback method sensors | Direct play, remux, or transcode state for each client, with detailed stream information as attributes |
 | Playback user sensors | Silo account currently playing on each client |
 | Playback profile sensors | Silo profile currently playing on each client |
 | **Scan all libraries** button | Starts a full scan of every enabled library |
 
-Session media players are available only while their corresponding client has an
-active playback session. Home Assistant retains previously discovered entities,
-which become unavailable when no matching session is active.
+The media player and its three playback sensors are available only while the
+corresponding client has an active playback session. Home Assistant retains
+previously discovered entities, which become unavailable when no matching
+session is active.
+
+### Playback details
+
+Open a client's **Playback method** sensor to see the additional attributes
+reported by Silo. Depending on the playback route and available metadata, these
+can include:
+
+- Silo username and profile
+- Client name and IP address
+- Video and audio decisions
+- Stream and source bitrate in kbit/s
+- Source container, video codec, resolution, audio codec, and channel count
+- Target resolution, codecs, and bitrate when transcoding
+- Hardware-acceleration method and transcode node
+
+The same raw playback fields are also exposed as attributes on the session media
+player for dashboards, templates, and automations. Silo may omit attributes that
+do not apply to the current playback method.
 
 ## Why administrator access is required
 
@@ -114,6 +153,21 @@ the session, control, and scan endpoints required by this integration.
 Controls appear only when the active Silo session reports realtime playback
 control support. Previous and next controls are unavailable because Silo's
 native API does not currently expose those commands.
+
+### Playback details are unavailable
+
+Start playback on a Silo client and allow up to 15 seconds for the integration's
+next poll. The playback method, user, and profile sensors are created after a
+client is first observed and become unavailable again when that client has no
+active session.
+
+### HACS says "icon not available"
+
+This is a known limitation in the current HACS frontend: it requests custom
+integration icons from the legacy Home Assistant Brands CDN instead of using the
+brand files shipped with the integration. It does not affect installation or
+operation. Follow the upstream issue at
+[hacs/integration#5223](https://github.com/hacs/integration/issues/5223).
 
 ## Support
 
