@@ -1,12 +1,57 @@
 """Sensors for SiloServer."""
 
-import hashlib
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers import entity_registry as er
 
-from .entity import SiloEntity, session_client_key
+from .entity import SiloEntity
+
+
+_SESSION_ATTRIBUTE_KEYS = (
+    "session_id",
+    "username",
+    "profile_name",
+    "media_title",
+    "episode_name",
+    "series_name",
+    "season_number",
+    "episode_number",
+    "media_type",
+    "poster_url",
+    "client_label",
+    "client_name",
+    "client_ip",
+    "client_version",
+    "client_build",
+    "client_channel",
+    "play_method",
+    "video_decision",
+    "audio_decision",
+    "stream_bitrate_kbps",
+    "source_container",
+    "source_bitrate_kbps",
+    "source_video_codec",
+    "source_video_resolution",
+    "source_audio_codec",
+    "source_audio_channels",
+    "source_audio_language",
+    "source_audio_title",
+    "source_audio_layout",
+    "target_resolution",
+    "target_video_codec",
+    "target_audio_codec",
+    "target_bitrate_kbps",
+    "transcode_audio",
+    "transcode_hw_accel",
+    "node_display_name",
+    "reporting_node",
+    "position_seconds",
+    "file_duration",
+    "is_paused",
+    "started_at",
+    "updated_at",
+)
 
 
 def _playback_method(session: dict[str, Any]) -> str:
@@ -24,44 +69,35 @@ def _playback_method(session: dict[str, Any]) -> str:
     return session.get("play_method") or "Unknown"
 
 
+def _session_attributes(session: dict[str, Any]) -> dict[str, Any]:
+    """Return useful, populated attributes for one active session."""
+    attributes = {
+        key: session[key]
+        for key in _SESSION_ATTRIBUTE_KEYS
+        if session.get(key) not in (None, "")
+    }
+    attributes["playback_method"] = _playback_method(session)
+    return attributes
+
+
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
-    """Set up activity and per-client playback sensors."""
-    coordinator = entry.runtime_data
+    """Set up the stable Silo activity sensor."""
     registry = er.async_get(hass)
-    library_unique_id_prefix = f"{entry.unique_id}_library_"
+    library_prefix = f"{entry.unique_id}_library_"
+    session_prefix = f"{entry.unique_id}_client_"
+
+    # Versions before 0.4.0 registered transient sessions and libraries as
+    # entities. Remove those obsolete entries once; active sessions now live as
+    # attributes on the stable server activity sensor, following Plex's model.
     for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
-        if (
-            registry_entry.domain == "sensor"
-            and registry_entry.unique_id.startswith(library_unique_id_prefix)
-        ):
+        if registry_entry.unique_id.startswith((library_prefix, session_prefix)):
             registry.async_remove(registry_entry.entity_id)
 
-    async_add_entities([SiloActivitySensor(coordinator, entry)])
-    known: set[str] = set()
-
-    def add_sessions() -> None:
-        new = []
-        for session in coordinator.data["sessions"]:
-            client_key = session_client_key(session)
-            if client_key in known:
-                continue
-            known.add(client_key)
-            new.extend(
-                (
-                    SiloPlaybackMethodSensor(coordinator, entry, client_key),
-                    SiloPlaybackUserSensor(coordinator, entry, client_key),
-                    SiloPlaybackProfileSensor(coordinator, entry, client_key),
-                )
-            )
-        if new:
-            async_add_entities(new)
-
-    add_sessions()
-    entry.async_on_unload(coordinator.async_add_listener(add_sessions))
+    async_add_entities([SiloActivitySensor(entry.runtime_data, entry)])
 
 
 class SiloActivitySensor(SiloEntity, SensorEntity):
-    """Number of native Silo playback sessions."""
+    """Number and details of native Silo playback sessions."""
 
     _attr_name = "Active streams"
     _attr_icon = "mdi:play-network"
@@ -75,149 +111,11 @@ class SiloActivitySensor(SiloEntity, SensorEntity):
         return len(self.coordinator.data["sessions"])
 
     @property
-    def extra_state_attributes(self):
-        return {
-            "sessions": [
-                {
-                    key: session.get(key)
-                    for key in (
-                        "username",
-                        "profile_name",
-                        "media_title",
-                        "episode_name",
-                        "series_name",
-                        "season_number",
-                        "episode_number",
-                        "media_type",
-                        "client_label",
-                        "client_ip",
-                        "play_method",
-                        "video_decision",
-                        "audio_decision",
-                        "stream_bitrate_kbps",
-                        "position_seconds",
-                        "is_paused",
-                    )
-                }
-                for session in self.coordinator.data["sessions"]
-            ]
-        }
-
-
-class SiloSessionSensor(SiloEntity, SensorEntity):
-    """Base sensor for one observed Silo client."""
-
-    def __init__(self, coordinator, entry, client_key: str, suffix: str) -> None:
-        super().__init__(coordinator, entry)
-        self.client_key = client_key
-        digest = hashlib.sha256(client_key.encode()).hexdigest()[:16]
-        self._attr_unique_id = f"{entry.unique_id}_client_{digest}_{suffix}"
-
-    @property
-    def session(self) -> dict[str, Any] | None:
-        return next(
-            (
-                session
-                for session in self.coordinator.data["sessions"]
-                if session_client_key(session) == self.client_key
-            ),
-            None,
-        )
-
-    @property
-    def available(self) -> bool:
-        return super().available and self.session is not None
-
-    @property
-    def client_name(self) -> str:
-        session = self.session or {}
-        return (
-            session.get("client_label")
-            or session.get("client_name")
-            or "Playback session"
-        )
-
-
-class SiloPlaybackMethodSensor(SiloSessionSensor):
-    """Playback method and detailed stream information for a Silo client."""
-
-    def __init__(self, coordinator, entry, client_key: str) -> None:
-        super().__init__(coordinator, entry, client_key, "playback_method")
-
-    @property
-    def name(self) -> str:
-        return f"{self.client_name} playback method"
-
-    @property
-    def icon(self) -> str:
-        method = _playback_method(self.session or {})
-        if method == "Transcoding":
-            return "mdi:movie-cog"
-        if method == "Remuxing":
-            return "mdi:movie-filter"
-        return "mdi:movie-open-play"
-
-    @property
-    def native_value(self) -> str:
-        return _playback_method(self.session or {})
-
-    @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        session = self.session or {}
-        values = {
-            "silo_username": session.get("username"),
-            "silo_profile": session.get("profile_name"),
-            "client": session.get("client_label") or session.get("client_name"),
-            "client_ip": session.get("client_ip"),
-            "video_decision": session.get("video_decision"),
-            "audio_decision": session.get("audio_decision"),
-            "stream_bitrate_kbps": session.get("stream_bitrate_kbps"),
-            "source_container": session.get("source_container"),
-            "source_bitrate_kbps": session.get("source_bitrate_kbps"),
-            "source_video_codec": session.get("source_video_codec"),
-            "source_video_resolution": session.get("source_video_resolution"),
-            "source_audio_codec": session.get("source_audio_codec"),
-            "source_audio_channels": session.get("source_audio_channels"),
-            "target_resolution": session.get("target_resolution"),
-            "target_video_codec": session.get("target_video_codec"),
-            "target_audio_codec": session.get("target_audio_codec"),
-            "target_bitrate_kbps": session.get("target_bitrate_kbps"),
-            "hardware_acceleration": session.get("transcode_hw_accel"),
-            "transcode_node": session.get("node_display_name")
-            or session.get("reporting_node"),
+        """Expose each live session without registering transient entities."""
+        return {
+            f"session_{index}": _session_attributes(session)
+            for index, session in enumerate(
+                self.coordinator.data["sessions"], start=1
+            )
         }
-        return {key: value for key, value in values.items() if value not in (None, "")}
-
-
-class SiloPlaybackUserSensor(SiloSessionSensor):
-    """Silo account currently playing on a client."""
-
-    _attr_icon = "mdi:account"
-
-    def __init__(self, coordinator, entry, client_key: str) -> None:
-        super().__init__(coordinator, entry, client_key, "user")
-
-    @property
-    def name(self) -> str:
-        return f"{self.client_name} user"
-
-    @property
-    def native_value(self) -> str:
-        return (self.session or {}).get("username") or "Unknown"
-
-
-class SiloPlaybackProfileSensor(SiloSessionSensor):
-    """Silo profile currently playing on a client."""
-
-    _attr_icon = "mdi:account-box"
-
-    def __init__(self, coordinator, entry, client_key: str) -> None:
-        super().__init__(coordinator, entry, client_key, "profile")
-
-    @property
-    def name(self) -> str:
-        return f"{self.client_name} profile"
-
-    @property
-    def native_value(self) -> str:
-        return (self.session or {}).get("profile_name") or "Default"

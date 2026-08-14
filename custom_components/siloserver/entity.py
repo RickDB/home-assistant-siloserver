@@ -1,22 +1,9 @@
 """Shared SiloServer entity."""
 
-from typing import Any
-
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
-
-
-def session_client_key(session: dict[str, Any]) -> str:
-    """Build a stable identity from fields exposed by Silo's native API."""
-    client = (
-        session.get("client_label")
-        or session.get("client_name")
-        or session.get("client_ip")
-        or session["session_id"]
-    )
-    return f"{session.get('profile_id', '')}:{client}"
 
 
 class SiloEntity(CoordinatorEntity):

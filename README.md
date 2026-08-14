@@ -5,7 +5,7 @@
 
 A custom Home Assistant integration for [SiloServer](https://siloserver.org/),
 built exclusively on Silo's native `/api/v1` API. Monitor active playback,
-control supported sessions, inspect libraries, and start library scans from Home
+inspect detailed session information, and start library scans from Home
 Assistant.
 
 > [!NOTE]
@@ -16,20 +16,20 @@ Assistant.
 
 - UI-based setup with a Silo administrator account
 - Active stream count and detailed playback information
-- A media player entity for each active Silo client
-- Visible direct play, remux, or transcode status for each client
+- Plex-style server activity sensor without transient session entities
+- Direct play, remux, or transcode status for each active session
 - Silo account and profile currently using each client
 - Source and target codecs, resolution, bitrate, hardware acceleration, and node
   information
-- Native pause, resume, and stop controls for compatible clients
 - Episode, season, series, and cover-art metadata
 - A button to scan all enabled libraries
 - Automatic Silo access-token refresh
 - Local polling: no cloud service is required
 
-Silo's native admin playback API currently supports pause, resume, and stop. It
-does not expose previous or next commands, so the integration does not advertise
-controls the server cannot execute.
+Playback sessions are exposed as attributes on one stable server entity. Silo's
+session API does not provide a persistent client machine identifier, so creating
+an entity per observed session would leave stale entries in Home Assistant's
+entity registry after playback ends or Home Assistant restarts.
 
 ## Requirements
 
@@ -75,9 +75,9 @@ Use **Update** on the SiloServer download in HACS and restart Home Assistant. Fo
 a manual installation, replace the complete `custom_components/siloserver`
 directory with the new version before restarting.
 
-Version `0.3.0` removes the old library-status diagnostic entities. During
-startup, the integration also removes those obsolete entities from Home
-Assistant's entity registry.
+Version `0.4.0` replaces transient session entities with the Plex-style stable
+activity sensor. During startup, the integration removes obsolete session and
+library entities from Home Assistant's entity registry.
 
 ## Configuration
 
@@ -95,23 +95,18 @@ server with a self-signed certificate.
 
 | Entity | Description |
 | --- | --- |
-| **Active streams** sensor | Number of active sessions, with playback and client details as attributes |
-| Session media players | One entity per observed Silo client, including playback state and media metadata |
-| Playback method sensors | Direct play, remux, or transcode state for each client, with detailed stream information as attributes |
-| Playback user sensors | Silo account currently playing on each client |
-| Playback profile sensors | Silo profile currently playing on each client |
+| **Active streams** sensor | Number of active sessions, with each session's playback, user, profile, media, and client details exposed as attributes |
 | **Scan all libraries** button | Starts a full scan of every enabled library |
 
-The media player and its three playback sensors are available only while the
-corresponding client has an active playback session. Home Assistant retains
-previously discovered entities, which become unavailable when no matching
-session is active.
+The integration creates only stable server-level entities. Active playback
+sessions appear and disappear as `session_1`, `session_2`, and subsequent
+attributes without creating device or entity registry entries.
 
 ### Playback details
 
-Open a client's **Playback method** sensor to see the additional attributes
-reported by Silo. Depending on the playback route and available metadata, these
-can include:
+Open the **Active streams** sensor to see the `session_1`, `session_2`, and
+subsequent attributes reported by Silo. Depending on the playback route and
+available metadata, each session can include:
 
 - Silo username and profile
 - Client name and IP address
@@ -121,17 +116,14 @@ can include:
 - Target resolution, codecs, and bitrate when transcoding
 - Hardware-acceleration method and transcode node
 
-The same raw playback fields are also exposed as attributes on the session media
-player for dashboards, templates, and automations. Silo may omit attributes that
-do not apply to the current playback method.
+Silo may omit attributes that do not apply to the current playback method.
 
 ## Why administrator access is required
 
-Silo's native active-session listing, playback control, library listing, and scan
-endpoints are protected administrator APIs. During setup, the supplied
-credentials are exchanged for Silo access and refresh tokens. The password is
-not stored by the integration; the tokens are stored in the Home Assistant
-configuration entry.
+Silo's native active-session listing, library listing, and scan endpoints are
+protected administrator APIs. During setup, the supplied credentials are
+exchanged for Silo access and refresh tokens. The password is not stored by the
+integration; the tokens are stored in the Home Assistant configuration entry.
 
 ## Troubleshooting
 
@@ -146,20 +138,14 @@ configuration entry.
 ### Authentication fails or administrator access is required
 
 Sign in with a Silo account whose role is `admin`. A regular user cannot access
-the session, control, and scan endpoints required by this integration.
-
-### Playback controls are missing
-
-Controls appear only when the active Silo session reports realtime playback
-control support. Previous and next controls are unavailable because Silo's
-native API does not currently expose those commands.
+the session and scan endpoints required by this integration.
 
 ### Playback details are unavailable
 
 Start playback on a Silo client and allow up to 15 seconds for the integration's
-next poll. The playback method, user, and profile sensors are created after a
-client is first observed and become unavailable again when that client has no
-active session.
+next poll. Open **Developer tools → States**, select the **Active streams**
+sensor, and inspect its `session_1` attribute. The session attribute disappears
+after playback ends; the sensor itself remains available and returns `0`.
 
 ### HACS says "icon not available"
 
