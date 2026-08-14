@@ -111,3 +111,9 @@ class SiloApiClient:
     async def async_scan(self, library_id: int) -> None:
         """Start a full scan of one library."""
         await self._request("POST", "/scan", json={"library_id": library_id})
+
+    async def async_control(self, session_id: str, command: str) -> None:
+        """Send a realtime playback command to an active session."""
+        await self._request(
+            "POST", f"/admin/sessions/{session_id}/{command}", json={}
+        )

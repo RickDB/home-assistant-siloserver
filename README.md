@@ -17,6 +17,7 @@ Assistant.
 - UI-based setup with a Silo administrator account
 - Active stream count and detailed playback information
 - Plex-style server activity sensor without transient session entities
+- One permanent **Now playing** media player for dashboard cards
 - Direct play, remux, or transcode status for each active session
 - Silo account and profile currently using each client
 - Source and target codecs, resolution, bitrate, hardware acceleration, and node
@@ -27,9 +28,9 @@ Assistant.
 - Local polling: no cloud service is required
 
 Playback sessions are exposed as attributes on one stable server entity. Silo's
-session API does not provide a persistent client machine identifier, so creating
-an entity per observed session would leave stale entries in Home Assistant's
-entity registry after playback ends or Home Assistant restarts.
+session API does not provide a persistent client machine identifier, so the
+integration uses one permanent server-level media player instead of creating an
+entity per observed session.
 
 ## Requirements
 
@@ -75,9 +76,9 @@ Use **Update** on the SiloServer download in HACS and restart Home Assistant. Fo
 a manual installation, replace the complete `custom_components/siloserver`
 directory with the new version before restarting.
 
-Version `0.4.0` replaces transient session entities with the Plex-style stable
-activity sensor. During startup, the integration removes obsolete session and
-library entities from Home Assistant's entity registry.
+Version `0.5.0` provides one permanent **Now playing** media player alongside the
+Plex-style stable activity sensor. During startup, the integration removes
+obsolete session and library entities from Home Assistant's entity registry.
 
 ## Configuration
 
@@ -96,11 +97,18 @@ server with a self-signed certificate.
 | Entity | Description |
 | --- | --- |
 | **Active streams** sensor | Number of active sessions, with each session's playback, user, profile, media, and client details exposed as attributes |
+| **Now playing** media player | Longest-running active session, including artwork, position, metadata, playback details, and supported controls |
 | **Scan all libraries** button | Starts a full scan of every enabled library |
 
 The integration creates only stable server-level entities. Active playback
 sessions appear and disappear as `session_1`, `session_2`, and subsequent
-attributes without creating device or entity registry entries.
+attributes without creating device or entity registry entries. The permanent
+**Now playing** media player remains idle when no session is active and can be
+selected in Home Assistant's Media Control card.
+
+When several sessions are active, **Now playing** represents the longest-running
+session and its controls target that session. Use **Active streams** to inspect
+all concurrent sessions.
 
 ### Playback details
 

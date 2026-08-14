@@ -7,7 +7,7 @@ from homeassistant.const import Platform
 DOMAIN = "siloserver"
 DEFAULT_PORT = 8090
 DEFAULT_SCAN_INTERVAL = timedelta(seconds=15)
-PLATFORMS = [Platform.SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.SENSOR, Platform.MEDIA_PLAYER, Platform.BUTTON]
 
 CONF_URL = "url"
 CONF_VERIFY_SSL = "verify_ssl"
