@@ -4,6 +4,7 @@ import hashlib
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity
+from homeassistant.helpers import entity_registry as er
 
 from .entity import SiloEntity, session_client_key
 
@@ -26,6 +27,15 @@ def _playback_method(session: dict[str, Any]) -> str:
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     """Set up activity and per-client playback sensors."""
     coordinator = entry.runtime_data
+    registry = er.async_get(hass)
+    library_unique_id_prefix = f"{entry.unique_id}_library_"
+    for registry_entry in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if (
+            registry_entry.domain == "sensor"
+            and registry_entry.unique_id.startswith(library_unique_id_prefix)
+        ):
+            registry.async_remove(registry_entry.entity_id)
+
     async_add_entities([SiloActivitySensor(coordinator, entry)])
     known: set[str] = set()
 
