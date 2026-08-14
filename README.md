@@ -76,7 +76,7 @@ Use **Update** on the SiloServer download in HACS and restart Home Assistant. Fo
 a manual installation, replace the complete `custom_components/siloserver`
 directory with the new version before restarting.
 
-Version `0.5.0` provides one permanent **Now playing** media player alongside the
+Version `0.5.1` provides one permanent **Now playing** media player alongside the
 Plex-style stable activity sensor. During startup, the integration removes
 obsolete session and library entities from Home Assistant's entity registry.
 

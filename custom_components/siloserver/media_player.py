@@ -3,8 +3,12 @@
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.media_player import MediaPlayerEntity, MediaPlayerEntityFeature
-from homeassistant.components.media_player.const import MediaPlayerState, MediaType
+from homeassistant.components.media_player import (
+    MediaPlayerEntity,
+    MediaPlayerEntityFeature,
+    MediaPlayerState,
+    MediaType,
+)
 
 from .entity import SiloEntity
 
