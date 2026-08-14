@@ -1,0 +1,25 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to SiloServer",
+        "description": "Connect using a Silo administrator account. This integration uses Silo's native API on the main application port (normally 8090).",
+        "data": {
+          "url": "Server URL",
+          "username": "Username",
+          "password": "Password",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to SiloServer",
+      "invalid_auth": "Invalid username or password",
+      "admin_required": "A Silo administrator account is required",
+      "unknown": "Unexpected error while connecting to SiloServer"
+    },
+    "abort": {
+      "already_configured": "This SiloServer is already configured"
+    }
+  }
+}

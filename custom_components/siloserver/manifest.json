@@ -1,0 +1,10 @@
+{
+  "domain": "siloserver",
+  "name": "SiloServer",
+  "codeowners": ["@rickdb"],
+  "config_flow": true,
+  "documentation": "https://github.com/rickdb/home-assistant-siloserver",
+  "issue_tracker": "https://github.com/rickdb/home-assistant-siloserver/issues",
+  "iot_class": "local_polling",
+  "version": "0.2.0"
+}
