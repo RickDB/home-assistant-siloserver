@@ -19,7 +19,6 @@ Assistant.
 - A media player entity for each active Silo client
 - Native pause, resume, and stop controls for compatible clients
 - Episode, season, series, and cover-art metadata
-- Library status and scan diagnostics
 - A button to scan all enabled libraries
 - Automatic Silo access-token refresh
 - Local polling: no cloud service is required
@@ -78,7 +77,9 @@ server with a self-signed certificate.
 | --- | --- |
 | **Active streams** sensor | Number of active sessions, with playback and client details as attributes |
 | Session media players | One entity per observed Silo client, including playback state and media metadata |
-| Library diagnostic sensors | Enabled state, paths, last scan time, and scan warnings for each library |
+| Playback method sensors | Direct play, remux, or transcode state for each client, with codecs, resolution, bitrate, hardware acceleration, and transcode-node details |
+| Playback user sensors | Silo account currently playing on each client |
+| Playback profile sensors | Silo profile currently playing on each client |
 | **Scan all libraries** button | Starts a full scan of every enabled library |
 
 Session media players are available only while their corresponding client has an

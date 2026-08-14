@@ -7,20 +7,41 @@ from typing import Any
 from homeassistant.components.media_player import MediaPlayerEntity, MediaPlayerEntityFeature
 from homeassistant.components.media_player.const import MediaPlayerState, MediaType
 
-from .entity import SiloEntity
+from .entity import SiloEntity, session_client_key
 
 
 _SESSION_ATTRIBUTE_KEYS = (
-    "username", "profile_name", "client_ip", "client_label_full", "client_name",
-    "client_version", "client_build", "client_channel", "client_user_agent",
-    "effective_play_method", "play_method", "video_decision", "audio_decision",
-    "stream_bitrate_kbps", "reporting_node", "node_display_name",
-    "source_container", "source_bitrate_kbps", "source_video_codec",
-    "source_video_resolution", "source_audio_codec", "source_audio_channels",
-    "source_audio_language", "source_audio_title", "source_audio_layout",
-    "target_resolution", "target_video_codec", "target_audio_codec",
-    "target_bitrate_kbps", "transcode_audio", "transcode_hw_accel",
-    "requested_video_codec", "requested_video_resolution", "is_jellyfin_client",
+    "username",
+    "profile_name",
+    "client_ip",
+    "client_name",
+    "client_version",
+    "client_build",
+    "client_channel",
+    "client_user_agent",
+    "play_method",
+    "video_decision",
+    "audio_decision",
+    "stream_bitrate_kbps",
+    "reporting_node",
+    "node_display_name",
+    "source_container",
+    "source_bitrate_kbps",
+    "source_video_codec",
+    "source_video_resolution",
+    "source_audio_codec",
+    "source_audio_channels",
+    "source_audio_language",
+    "source_audio_title",
+    "source_audio_layout",
+    "target_resolution",
+    "target_video_codec",
+    "target_audio_codec",
+    "target_bitrate_kbps",
+    "transcode_audio",
+    "transcode_hw_accel",
+    "requested_video_codec",
+    "requested_video_resolution",
 )
 
 
@@ -41,18 +62,6 @@ def _parse_timestamp(value: Any) -> datetime | None:
         return None
 
 
-def _client_key(session) -> str:
-    """Build a stable identity from fields exposed by Silo's native API."""
-    client = (
-        session.get("client_label_full")
-        or session.get("client_label")
-        or session.get("client_name")
-        or session.get("client_ip")
-        or session["session_id"]
-    )
-    return f"{session.get('profile_id', '')}:{client}"
-
-
 async def async_setup_entry(hass, entry, async_add_entities) -> None:
     coordinator = entry.runtime_data
     known: set[str] = set()
@@ -60,7 +69,7 @@ async def async_setup_entry(hass, entry, async_add_entities) -> None:
     def add_sessions() -> None:
         new = []
         for session in coordinator.data["sessions"]:
-            client_key = _client_key(session)
+            client_key = session_client_key(session)
             if client_key not in known:
                 known.add(client_key)
                 new.append(SiloSessionPlayer(coordinator, entry, client_key))
@@ -86,7 +95,7 @@ class SiloSessionPlayer(SiloEntity, MediaPlayerEntity):
             (
                 x
                 for x in self.coordinator.data["sessions"]
-                if _client_key(x) == self.client_key
+                if session_client_key(x) == self.client_key
             ),
             None,
         )
@@ -156,11 +165,14 @@ class SiloSessionPlayer(SiloEntity, MediaPlayerEntity):
     def extra_state_attributes(self):
         if not self.session:
             return {}
-        return {
+        attributes = {
             key: self.session[key]
             for key in _SESSION_ATTRIBUTE_KEYS
             if self.session.get(key) not in (None, "")
         }
+        attributes["silo_username"] = self.session.get("username")
+        attributes["silo_profile"] = self.session.get("profile_name")
+        return attributes
 
     async def _command(self, command: str) -> None:
         if not self.session:
